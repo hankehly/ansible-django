@@ -1,0 +1,16 @@
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: create ec2 instance
+      ec2:
+        assign_public_ip: yes
+        id: test_instance
+        key_name: ubuntu_18.04_LTS
+        instance_type: t2.micro
+        instance_tags:
+          Name: test_instance
+        image: ami-026c8acd92718196b
+        region: us-east-1
+        wait: yes
+        vpc_subnet_id: subnet-6eaae561
+        zone: us-east-1f
