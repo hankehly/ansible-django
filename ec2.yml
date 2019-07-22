@@ -4,7 +4,6 @@
     - name: create ec2 instance
       ec2:
         assign_public_ip: yes
-        id: test_instance
         key_name: ubuntu_18.04_LTS
         instance_type: t2.micro
         instance_tags:

@@ -1,8 +1,9 @@
-- hosts: '{{ host }}'
+- hosts: tag_Name_test_instance
   remote_user: ubuntu
   become: yes
   gather_facts: false
   tasks:
+
     # user / group
     - name: create group
       group:
@@ -13,32 +14,45 @@
         group: test_group
         generate_ssh_key: yes
 
-#    # database
-#    - name: install postgres
-#      apt:
-#        name: postgresql
-#        update_cache: yes
-#    - name: create postgres database
-#      postgresql_db:
-#        name: test_db
-#    - name: create postgres user
-#      postgresql_user:
-#        db: test_db
-#        name: test_user
-#        password: password123
-#        priv: all
-#
-#    # web server
-#    - name: install nginx
-#      apt:
-#        name: nginx
-#        update_cache: yes
-#    - name: make sure nginx is running
-#      systemd:
-#        name: nginx
-#        state: started
-#        enabled: yes
-#
+    # pip
+    - name: install pip
+      apt:
+        name: python3-pip
+        update_cache: yes
+
+    # database
+    - name: install psycopg2 deps
+      apt:
+        name: libpq-dev
+        update_cache: yes
+    - name: install psycopg2
+      pip:
+        name: psycopg2
+    - name: install postgres
+      apt:
+        name: postgresql
+        update_cache: yes
+    - name: create postgres database
+      postgresql_db:
+        name: test_db
+    - name: create postgres user
+      postgresql_user:
+        db: test_db
+        name: test_user
+        password: password123
+        priv: all
+
+    # web server
+    - name: install nginx
+      apt:
+        name: nginx
+        update_cache: yes
+    - name: make sure nginx is running
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
 #    # django app
 #    - name: download app source code from git
 #      repo: 'https://github.com/hankehly/uwsgi-quickstart.git'
