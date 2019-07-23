@@ -1,11 +1,32 @@
-- hosts: tag_Name_test_instance
+- hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: Provision an EC2 instance
+      ec2:
+        assign_public_ip: yes
+        key_name: ubuntu_18.04_LTS
+        instance_type: t2.micro
+        instance_tags:
+          Name: test_instance
+        image: ami-026c8acd92718196b
+        region: us-east-1
+        wait: true
+        vpc_subnet_id: subnet-6eaae561
+        zone: us-east-1f
+      register: ec2
+    - name: Add all instance public IPs to host group
+      add_host:
+        hostname: "{{ item.public_ip }}"
+        groups: ec2hosts
+      loop: "{{ ec2.instances }}"
+- hosts: ec2hosts
   remote_user: ubuntu
-  become: no
+  become: yes
+  gather_facts: true
   tasks:
     - name:
       debug:
         var: ansible_facts
-    # database
     - name: Install Postgres
       apt:
         name: "{{ packages }}"
@@ -22,30 +43,26 @@
     - name: Install psycopg2
       pip:
         name: psycopg2
-      become: yes
-      become_user: ubuntu
     - name: Create Postgres Database
       become: yes
       become_user: postgres
       postgresql_db:
         name: test_db
-    - name: create postgres user
+    - name: Create Postgres User
       postgresql_user:
         db: test_db
         name: test_user
         password: password123
         priv: all
-    # web server
-    - name: install nginx
+    - name: Install Nginx
       apt:
         name: nginx
         update_cache: yes
-    - name: make sure nginx is running
+    - name: Make sure Nginx is running
       systemd:
         name: nginx
         state: started
         enabled: yes
-    # django app
     - name: Generate SSH key
       openssh_keypair:
         path: /home/ubuntu/.ssh/id_rsa
