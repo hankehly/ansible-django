@@ -1,7 +1,7 @@
 - hosts: localhost
   gather_facts: false
   tasks:
-    - name: create ec2 instance
+    - name: Create EC2 Instance
       ec2:
         assign_public_ip: yes
         key_name: ubuntu_18.04_LTS
