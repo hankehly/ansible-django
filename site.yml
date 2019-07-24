@@ -8,6 +8,7 @@
         instance_type: t2.micro
         instance_tags:
           Name: test_instance
+        id: i-ko3a15s43iar # random (to keep playbook idempotent)
         image: ami-026c8acd92718196b
         region: us-east-1
         wait: true
@@ -22,11 +23,10 @@
 - hosts: ec2hosts
   remote_user: ubuntu
   become: yes
-  gather_facts: true
+  gather_facts: false
   tasks:
-    - name:
-      debug:
-        var: ansible_facts
+    - name: Wait for system to become reachable
+      wait_for_connection:
     - name: Install Postgres
       apt:
         name: "{{ packages }}"
@@ -51,9 +51,9 @@
     - name: Create Postgres User
       postgresql_user:
         db: test_db
-        name: test_user
+        name: django
         password: password123
-        priv: all
+        priv: ALL
     - name: Install Nginx
       apt:
         name: nginx
