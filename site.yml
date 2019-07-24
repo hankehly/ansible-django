@@ -3,7 +3,7 @@
   tasks:
     - name: Provision an EC2 instance
       ec2:
-        assign_public_ip: yes
+        assign_public_ip: true
         key_name: ubuntu_18.04_LTS
         instance_type: t2.micro
         instance_tags:
@@ -22,7 +22,7 @@
       loop: "{{ ec2.instances }}"
 - hosts: ec2hosts
   remote_user: ubuntu
-  become: yes
+  become: true
   gather_facts: false
   tasks:
     - name: Wait for system to become reachable
@@ -30,7 +30,7 @@
     - name: Install Postgres
       apt:
         name: "{{ packages }}"
-        update_cache: yes
+        update_cache: true
       vars:
         packages:
           - python3-pip
@@ -44,11 +44,13 @@
       pip:
         name: psycopg2
     - name: Create Postgres Database
-      become: yes
+      become: true
       become_user: postgres
       postgresql_db:
         name: test_db
     - name: Create Postgres User
+      become: true
+      become_user: postgres
       postgresql_user:
         db: test_db
         name: django
@@ -57,17 +59,18 @@
     - name: Install Nginx
       apt:
         name: nginx
-        update_cache: yes
+        update_cache: true
     - name: Make sure Nginx is running
       systemd:
         name: nginx
         state: started
-        enabled: yes
+        enabled: true
     - name: Generate SSH key
       openssh_keypair:
         path: /home/ubuntu/.ssh/id_rsa
         comment: ubuntu
         owner: ubuntu
+        group: ubuntu
 #    - name: download app source code from git
 #      repo: 'https://github.com/hankehly/uwsgi-quickstart.git'
 #      dest: /home/test_user
