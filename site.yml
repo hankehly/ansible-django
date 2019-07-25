@@ -83,7 +83,7 @@
       register: ssh_pub_key
     - name: Authorize key with GitHub
       local_action:
-        name: Create GitHub access key
+        name: ansible-django-test
         module: github_key
         token: "{{ github_access_token }}"
         pubkey: "{{ ssh_pub_key.stdout }}"
