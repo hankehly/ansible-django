@@ -1,14 +1,18 @@
 - hosts: localhost
   gather_facts: False
+  vars_files:
+    - external_vars.yml
   tasks:
     - name: Provision an EC2 instance
       ec2:
         assign_public_ip: true
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
         key_name: ubuntu_18.04_LTS
         instance_type: t2.micro
         instance_tags:
           Name: test_instance
-        id: i-ko3a15s43iar # random (to keep playbook idempotent)
+        id: i-ko3a15s43iaa # random (to keep playbook idempotent)
         image: ami-026c8acd92718196b
         region: us-east-1
         wait: true
@@ -24,6 +28,8 @@
   remote_user: ubuntu
   become: true
   gather_facts: false
+  vars_files:
+    - external_vars.yml
   tasks:
     - name: Wait for system to become reachable
       wait_for_connection:
@@ -71,6 +77,17 @@
         comment: ubuntu
         owner: ubuntu
         group: ubuntu
-#    - name: download app source code from git
-#      repo: 'https://github.com/hankehly/uwsgi-quickstart.git'
-#      dest: /home/test_user
+    - name: Read SSH public key to authorize
+      shell: cat /home/ubuntu/.ssh/id_rsa.pub
+      # registers RETURN value of shell play to ssh_pub_key variable
+      register: ssh_pub_key
+    - name: Authorize key with GitHub
+      local_action:
+        name: Create GitHub access key
+        module: github_key
+        token: "{{ github_access_token }}"
+        pubkey: "{{ ssh_pub_key.stdout }}"
+    - name: Download app source code
+      git:
+        repo: "https://github.com/hankehly/uwsgi-quickstart.git"
+        dest: /home/ubuntu/uwsgi-quickstart
