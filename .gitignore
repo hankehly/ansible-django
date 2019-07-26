@@ -1,3 +1,4 @@
 .idea/
 .env
-external_vars.yml
+secrets.yml
+
