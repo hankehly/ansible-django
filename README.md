@@ -15,6 +15,7 @@ aws_secret_key=xxx
 github_access_token=xxx # requires write:public_key permission
 ```
 
+Create an EC2 keypair named `ubuntu_18.04_LTS`.
 Make sure your default security group allows access to TCP 8080 port.
 
 Execute the `site.yml` playbook to provision and configure a new EC2 instance with a django app. Ansible will create the instance, wait for connection and run a configuration play.
