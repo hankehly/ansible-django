@@ -22,3 +22,8 @@ Execute the `site.yml` playbook to provision and configure a new EC2 instance wi
 # specify the private key file when executing ansible-playbook
 $ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostKeyChecking=no" site.yml
 ```
+
+TODO:
+- split tasks into roles
+- use vault to store credentials
+- provide helpful message at end of playbook

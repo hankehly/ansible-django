@@ -12,7 +12,7 @@
         instance_type: t2.micro
         instance_tags:
           Name: test_instance
-        id: i-ko3a15s43iac # random (to keep playbook idempotent)
+        id: i-ko3a15s43iah # random (to keep playbook idempotent)
         image: ami-026c8acd92718196b
         region: us-east-1
         wait: yes
@@ -29,7 +29,7 @@
 - hosts: ec2hosts
   remote_user: ubuntu
   become: yes
-  gather_facts: no
+  gather_facts: no  # performed after wait_for_connection
   vars:
     app_user: ubuntu
     app_repo: "https://github.com/hankehly/uwsgi-quickstart.git"
@@ -93,12 +93,6 @@
         src: nginx.conf
         dest: /etc/nginx/conf.d/uwsgiquickstart.conf
         mode: '0644'
-
-    - name: Make sure Nginx is running
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
 
     - name: Generate SSH key
       openssh_keypair:
@@ -169,15 +163,8 @@
         name: uwsgi
       register: uwsgi_pids
 
-    - name: Reload uWSGI server
-      command: "poetry run uwsgi --reload uwsgi.ini --daemonize {{ repo_dir }}/django/uwsgi.log"
-      args:
-        chdir: "{{ repo_dir }}/django"
-      become: yes
-      become_user: "{{ app_user }}"
-      environment:
-        APP_DIR: "{{ repo_dir }}/django"
-        DJANGO_SETTINGS_MODULE: "settings.staging"
+    - name: Kill uWSGI server
+      command: "pkill -INT uwsgi"
       when: uwsgi_pids.pids|length > 0
 
     - name: Start uWSGI server
@@ -189,4 +176,12 @@
       environment:
         APP_DIR: "{{ repo_dir }}/django"
         DJANGO_SETTINGS_MODULE: "settings.staging"
-      when: uwsgi_pids.pids|length == 0
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    - name: Displaying finish message
+      debug:
+        msg: "View your app at {{ inventory_hostname }}:8080"
