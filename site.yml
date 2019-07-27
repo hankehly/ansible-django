@@ -12,18 +12,20 @@
         instance_type: t2.micro
         instance_tags:
           Name: test_instance
-        id: i-ko3a15s43iaa # random (to keep playbook idempotent)
+        id: i-ko3a15s43iac # random (to keep playbook idempotent)
         image: ami-026c8acd92718196b
         region: us-east-1
         wait: yes
         vpc_subnet_id: subnet-6eaae561
         zone: us-east-1f
       register: ec2
+
     - name: Add all instance public IPs to host group
       add_host:
         hostname: "{{ item.public_ip }}"
         groups: ec2hosts
       loop: "{{ ec2.instances }}"
+
 - hosts: ec2hosts
   remote_user: ubuntu
   become: yes
@@ -32,12 +34,14 @@
     app_user: ubuntu
     app_repo: "https://github.com/hankehly/uwsgi-quickstart.git"
     repo_dir: /home/ubuntu/uwsgi-quickstart
+    ansible_python_interpreter: /usr/bin/python3
   vars_files:
     - secrets.yml
   tasks:
     - name: Wait for system to become reachable
       wait_for_connection:
-    - name: Install python3 packages
+
+    - name: Install python3
       apt:
         name: "{{ packages }}"
         update_cache: yes
@@ -48,6 +52,7 @@
           - python3-pkg-resources
           - python3-setuptools
           - python3-venv
+
     - name: Install postgres
       apt:
         name: "{{ packages }}"
@@ -57,14 +62,18 @@
           - libpq-dev
           - postgresql
           - postgresql-contrib
+
     - name: Install psycopg2
       pip:
         name: psycopg2
+        executable: /usr/bin/pip3
+
     - name: Create Postgres Database
       become: yes
       become_user: postgres
       postgresql_db:
         name: test_db
+
     - name: Create Postgres User
       become: yes
       become_user: postgres
@@ -73,56 +82,111 @@
         name: django
         password: password123
         priv: ALL
+
     - name: Install Nginx
       apt:
         name: nginx
         update_cache: yes
+
+    - name: Template nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
+      template:
+        src: nginx.conf
+        dest: /etc/nginx/conf.d/uwsgiquickstart.conf
+        mode: '0644'
+
     - name: Make sure Nginx is running
       systemd:
         name: nginx
         state: started
         enabled: yes
+
     - name: Generate SSH key
       openssh_keypair:
         path: "/home/{{ app_user }}/.ssh/id_rsa"
         comment: "{{ app_user }}"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
+
     - name: Read SSH public key to authorize
       shell: "cat /home/{{ app_user }}/.ssh/id_rsa.pub"
       register: ssh_pub_key
+
     - name: Authorize key with GitHub
-      local_action:
+      github_key:
         name: ansible-django-test
-        module: github_key
         token: "{{ github_access_token }}"
         pubkey: "{{ ssh_pub_key.stdout }}"
+      delegate_to: localhost
+      vars:
+        ansible_python_interpreter: auto
+
     - name: Download app source code
       git:
         repo: "{{ app_repo }}"
         dest: "{{ repo_dir }}"
         update: yes
         version: master
+        force: yes
       become: yes
       become_user: "{{ app_user }}"
+
     - name: Install poetry
       pip:
         name: poetry
+        executable: /usr/bin/pip3
+
+    - name: Create virtualenv
+      command: python3 -m venv .venv
+      args:
+        chdir: "{{ repo_dir }}/django"
+        creates: "{{ repo_dir }}/django/.venv"
+      become: yes
+      become_user: "{{ app_user }}"
+
     - name: Install python dependencies
       command: poetry install --no-dev --no-interaction
       args:
         chdir: "{{ repo_dir }}/django"
       become: yes
       become_user: "{{ app_user }}"
+
     - name: Migrate database
       command: poetry run python manage.py migrate
       args:
-        chdir: "{{ repo_dir }}/django"
+        chdir: "{{ repo_dir }}/django/djangoquickstart"
       become: yes
       become_user: "{{ app_user }}"
-    - name: Start uwsgi server
-      command: poetry run uwsgi uwsgi.ini
+      environment:
+        DJANGO_SETTINGS_MODULE: "settings.staging"
+
+    - name: Install psutil for checking uWSGI pids
+      pip:
+        name: psutil
+        executable: /usr/bin/pip3
+
+    - name: Get uWSGI server pids
+      pids:
+        name: uwsgi
+      register: uwsgi_pids
+
+    - name: Reload uWSGI server
+      command: "poetry run uwsgi --reload uwsgi.ini --daemonize {{ repo_dir }}/django/uwsgi.log"
       args:
         chdir: "{{ repo_dir }}/django"
       become: yes
       become_user: "{{ app_user }}"
+      environment:
+        APP_DIR: "{{ repo_dir }}/django"
+        DJANGO_SETTINGS_MODULE: "settings.staging"
+      when: uwsgi_pids.pids|length > 0
+
+    - name: Start uWSGI server
+      command: "poetry run uwsgi uwsgi.ini --daemonize {{ repo_dir }}/django/uwsgi.log"
+      args:
+        chdir: "{{ repo_dir }}/django"
+      become: yes
+      become_user: "{{ app_user }}"
+      environment:
+        APP_DIR: "{{ repo_dir }}/django"
+        DJANGO_SETTINGS_MODULE: "settings.staging"
+      when: uwsgi_pids.pids|length == 0
