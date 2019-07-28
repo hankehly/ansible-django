@@ -1,0 +1,102 @@
+- name: Install Nginx
+  apt:
+    name: nginx
+    update_cache: yes
+
+- name: Template nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
+  template:
+    src: nginx.conf
+    dest: /etc/nginx/conf.d/uwsgiquickstart.conf
+    mode: '0644'
+
+- name: Generate SSH key
+  openssh_keypair:
+    path: "/home/{{ app_user }}/.ssh/id_rsa"
+    comment: "{{ app_user }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+
+- name: Read SSH public key to authorize
+  command: "cat /home/{{ app_user }}/.ssh/id_rsa.pub"
+  register: ssh_pub_key
+
+- name: Authorize key with GitHub
+  github_key:
+    name: ansible-django-test
+    token: "{{ github_access_token }}"
+    pubkey: "{{ ssh_pub_key.stdout }}"
+  delegate_to: localhost
+  vars:
+    ansible_python_interpreter: auto
+
+- name: Download app source code
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ repo_dir }}"
+    update: yes
+    version: master
+    force: yes
+  become: yes
+  become_user: "{{ app_user }}"
+
+- name: Install poetry
+  pip:
+    name: poetry
+    executable: /usr/bin/pip3
+
+- name: Create virtualenv
+  command: python3 -m venv .venv
+  args:
+    chdir: "{{ repo_dir }}/django"
+    creates: "{{ repo_dir }}/django/.venv"
+  become: yes
+  become_user: "{{ app_user }}"
+
+- name: Install python dependencies
+  command: poetry install --no-dev --no-interaction
+  args:
+    chdir: "{{ repo_dir }}/django"
+  become: yes
+  become_user: "{{ app_user }}"
+
+- name: Migrate database
+  command: poetry run python manage.py migrate
+  args:
+    chdir: "{{ repo_dir }}/django/djangoquickstart"
+  become: yes
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "settings.staging"
+
+- name: Install psutil for checking uWSGI pids
+  pip:
+    name: psutil
+    executable: /usr/bin/pip3
+
+- name: Get uWSGI server pids
+  pids:
+    name: uwsgi
+  register: uwsgi_pids
+
+- name: Kill uWSGI server
+  command: "pkill -INT uwsgi"
+  when: uwsgi_pids.pids|length > 0
+
+- name: uWSGI server stopped
+  assert:
+    that: uwsgi_pids.pids|length == 0
+
+- name: Start uWSGI server
+  command: "poetry run uwsgi uwsgi.ini --daemonize {{ repo_dir }}/django/uwsgi.log"
+  args:
+    chdir: "{{ repo_dir }}/django"
+  become: yes
+  become_user: "{{ app_user }}"
+  environment:
+    APP_DIR: "{{ repo_dir }}/django"
+    DJANGO_SETTINGS_MODULE: "settings.staging"
+
+- name: Restart nginx
+  systemd:
+    name: nginx
+    state: restarted

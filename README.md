@@ -25,7 +25,6 @@ $ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostK
 ```
 
 TODO:
-- split tasks into roles
 - use vault to store credentials
 - provide helpful message at end of playbook
 - provide way to terminate instance
