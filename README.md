@@ -26,7 +26,6 @@ $ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostK
 
 TODO:
 - use vault to store credentials
-- provide helpful message at end of playbook
 - provide way to terminate instance
 - setup security group with open TCP 8080 port
 - create EC2 keypair
