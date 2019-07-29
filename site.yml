@@ -1,7 +1,8 @@
 - hosts: localhost
   gather_facts: no
   vars_files:
-    - secrets.yml
+    - credentials.yml
+    - ec2secrets.yml
   tasks:
     - name: Provisioning an EC2 instance
       ec2:
@@ -11,8 +12,11 @@
         key_name: ubuntu_18.04_LTS
         instance_type: t2.micro
         instance_tags:
-          Name: test_instance
-        id: i-ko3a15s43iah # random (to keep playbook idempotent)
+          # secret value encrypted with ansible-vault
+          # vault-pass is "ansible-django"
+          Name: "{{ instance_tags__name }}"
+        # random id to keep playbook idempotent
+        id: i-ko3a15s43iai
         image: ami-026c8acd92718196b
         region: us-east-1
         wait: yes
@@ -31,12 +35,9 @@
   become: yes
   gather_facts: no
   vars:
-    app_user: ubuntu
-    app_repo: "https://github.com/hankehly/uwsgi-quickstart.git"
-    repo_dir: /home/ubuntu/uwsgi-quickstart
     ansible_python_interpreter: /usr/bin/python3
   vars_files:
-    - secrets.yml
+    - credentials.yml
   tasks:
     - name: Waiting for system to become reachable
       wait_for_connection:
@@ -47,6 +48,9 @@
         name: db
     - import_role:
         name: web
+      vars:
+        app_user: ubuntu
+        repo_dir: /home/ubuntu/uwsgi-quickstart
 
     - name: Displaying completion message
       debug:

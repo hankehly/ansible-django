@@ -1,26 +1,26 @@
-- name: Install Nginx
+- name: Installing nginx
   apt:
     name: nginx
     update_cache: yes
 
-- name: Template nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
+- name: Placing template nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
   template:
     src: nginx.conf
     dest: /etc/nginx/conf.d/uwsgiquickstart.conf
     mode: '0644'
 
-- name: Generate SSH key
+- name: Generating SSH key
   openssh_keypair:
     path: "/home/{{ app_user }}/.ssh/id_rsa"
     comment: "{{ app_user }}"
     owner: "{{ app_user }}"
     group: "{{ app_user }}"
 
-- name: Read SSH public key to authorize
+- name: Reading SSH public key to authorize
   command: "cat /home/{{ app_user }}/.ssh/id_rsa.pub"
   register: ssh_pub_key
 
-- name: Authorize key with GitHub
+- name: Authorizing key with GitHub
   github_key:
     name: ansible-django-test
     token: "{{ github_access_token }}"
@@ -29,9 +29,9 @@
   vars:
     ansible_python_interpreter: auto
 
-- name: Download app source code
+- name: Downloading app source code
   git:
-    repo: "{{ app_repo }}"
+    repo: "https://github.com/hankehly/uwsgi-quickstart.git"
     dest: "{{ repo_dir }}"
     update: yes
     version: master
@@ -39,12 +39,12 @@
   become: yes
   become_user: "{{ app_user }}"
 
-- name: Install poetry
+- name: Installing poetry
   pip:
     name: poetry
     executable: /usr/bin/pip3
 
-- name: Create virtualenv
+- name: Creating virtualenv
   command: python3 -m venv .venv
   args:
     chdir: "{{ repo_dir }}/django"
@@ -52,14 +52,14 @@
   become: yes
   become_user: "{{ app_user }}"
 
-- name: Install python dependencies
+- name: Installing python dependencies
   command: poetry install --no-dev --no-interaction
   args:
     chdir: "{{ repo_dir }}/django"
   become: yes
   become_user: "{{ app_user }}"
 
-- name: Migrate database
+- name: Migrating database
   command: poetry run python manage.py migrate
   args:
     chdir: "{{ repo_dir }}/django/djangoquickstart"
@@ -68,17 +68,17 @@
   environment:
     DJANGO_SETTINGS_MODULE: "settings.staging"
 
-- name: Install psutil for checking uWSGI pids
+- name: Installing psutil for checking uWSGI pids
   pip:
     name: psutil
     executable: /usr/bin/pip3
 
-- name: Get uWSGI server pids
+- name: Getting uWSGI server pids
   pids:
     name: uwsgi
   register: uwsgi_pids
 
-- name: Kill uWSGI server
+- name: Killing uWSGI server
   command: "pkill -INT uwsgi"
   when: uwsgi_pids.pids|length > 0
 
@@ -86,7 +86,7 @@
   assert:
     that: uwsgi_pids.pids|length == 0
 
-- name: Start uWSGI server
+- name: Starting uWSGI server
   command: "poetry run uwsgi uwsgi.ini --daemonize {{ repo_dir }}/django/uwsgi.log"
   args:
     chdir: "{{ repo_dir }}/django"
@@ -96,7 +96,7 @@
     APP_DIR: "{{ repo_dir }}/django"
     DJANGO_SETTINGS_MODULE: "settings.staging"
 
-- name: Restart nginx
+- name: Restarting nginx
   systemd:
     name: nginx
     state: restarted

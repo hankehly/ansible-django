@@ -1,25 +1,23 @@
-- name: Install Postgres
+- name: Installing postgres
   apt:
-    name: "{{ packages }}"
-    update_cache: yes
-  vars:
-    packages:
+    name:
       - libpq-dev
       - postgresql
       - postgresql-contrib
+    update_cache: yes
 
-- name: Install psycopg2
+- name: Installing psycopg2
   pip:
     name: psycopg2
     executable: /usr/bin/pip3
 
-- name: Create Postgres Database
+- name: Creating postgres db
   become: yes
   become_user: postgres
   postgresql_db:
     name: test_db
 
-- name: Create Postgres User
+- name: Creating postgres db-user
   become: yes
   become_user: postgres
   postgresql_user:

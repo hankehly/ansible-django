@@ -20,12 +20,11 @@ Make sure your default security group allows access to TCP 8080 port.
 
 Execute the `site.yml` playbook to provision and configure a new EC2 instance with a django app. Ansible will create the instance, wait for connection and run a configuration play.
 ```
-# specify the private key file when executing ansible-playbook
-$ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostKeyChecking=no" site.yml
+$ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostKeyChecking=no" --ask-vault-pass site.yml
+Vault password: ansible-django
 ```
 
 TODO:
-- use vault to store credentials
 - provide way to terminate instance
 - setup security group with open TCP 8080 port
 - create EC2 keypair
