@@ -34,7 +34,7 @@
     repo: "https://github.com/hankehly/uwsgi-quickstart.git"
     dest: "{{ repo_dir }}"
     update: yes
-    version: master
+    version: 1.0.0
     force: yes
   become: yes
   become_user: "{{ app_user }}"

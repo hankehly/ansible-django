@@ -28,4 +28,3 @@ TODO:
 - provide way to terminate instance
 - setup security group with open TCP 8080 port
 - create EC2 keypair
-- tag app version for backward compatibility
