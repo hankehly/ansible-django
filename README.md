@@ -1,30 +1,27 @@
 # ansible-django
 
-Install the boto library.
+Install `boto`, `boto3` and `botocore` ansible module dependencies.
 ```
 $ pip --version
 pip 19.0.3 from ... (python 3.7)
-pip install boto
+pip install boto boto3 botocore
 ```
 
-Fill out credentials
+Fill out AWS and GitHub credentials in the `vars` folder.
 ```
-$ cp external_vars.yml{.template,}
+$ cp aws.yml{.template,}
 aws_access_key=xxx
 aws_secret_key=xxx
+
+$ cp github.yml{.template,}
 github_access_token=xxx # requires write:public_key permission
 ```
 
-Create an EC2 keypair named `ubuntu_18.04_LTS`.
-Make sure your default security group allows access to TCP 8080 port.
-
-Execute the `site.yml` playbook to provision and configure a new EC2 instance with a django app. Ansible will create the instance, wait for connection and run a configuration play.
+Execute the `site.yml` playbook to provision and configure a new EC2 instance with a demo [django app](https://github.com/hankehly/uwsgi-quickstart). Ansible will create an EC2 instance, wait for it to become available, run a configuration play and output a message containing a link to the public app when configuration is complete.
 ```
-$ ansible-playbook --private-key ~/.ssh/id_rsa --ssh-common-args="-o StrictHostKeyChecking=no" --ask-vault-pass site.yml
+$ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --ask-vault-pass site.yml
 Vault password: ansible-django
 ```
 
 TODO:
 - provide way to terminate instance
-- setup security group with open TCP 8080 port
-- create EC2 keypair

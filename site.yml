@@ -1,32 +1,66 @@
 - hosts: localhost
   gather_facts: no
   vars_files:
-    - credentials.yml
-    - ec2secrets.yml
+    - vars/aws.yml
+    - vars/ec2secrets.yml
   tasks:
-    - name: Provisioning an EC2 instance
-      ec2:
-        assign_public_ip: yes
+    - name: Creating an EC2 key pair
+      ec2_key:
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
-        key_name: ubuntu_18.04_LTS
-        instance_type: t2.micro
-        instance_tags:
-          # secret value encrypted with ansible-vault
-          # vault-pass is "ansible-django"
-          Name: "{{ instance_tags__name }}"
-        # random id to keep playbook idempotent
-        id: i-ko3a15s43iai
-        image: ami-026c8acd92718196b
-        region: us-east-1
+        name: ansible-django
+        region: "{{ region }}"
         wait: yes
-        vpc_subnet_id: subnet-6eaae561
-        zone: us-east-1f
+      register: ec2_key
+
+    - name: Saving private key
+      copy:
+        content: "{{ ec2_key.key.private_key }}"
+        dest: "{{ ec2_key.key.name }}.pem"
+        mode: 0600
+
+    - name: "Finding IP address"
+      command: "/usr/bin/dig +short myip.opendns.com @resolver1.opendns.com"
+      register: myip
+
+    - name: "Creating EC2 security group"
+      ec2_group:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        description: "Security group for ansible-django test app"
+        name: "ansible-django"
+        region: "{{ region }}"
+        rules:
+          - proto: tcp
+            from_port: 8080
+            to_port: 8080
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ myip.stdout }}/32"
+        vpc_id: "{{ vpc_id }}"
+      register: ec2_group
+
+    - name: Provisioning an EC2 instance
+      ec2_instance:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        image_id: ami-026c8acd92718196b  # ubuntu 18.04
+        instance_ids:
+          - i-ko3a15s43iak # random id to keep playbook idempotent
+        instance_type: t2.micro
+        key_name: "{{ ec2_key.key.name }}"
+        name: "{{ instance_tags__name }}"
+        region: "{{ region }}"
+        security_group: "{{ ec2_group.group_name }}"
+        state: running
+        wait: yes
       register: ec2
 
     - name: Adding all instance public IPs to host group
       add_host:
-        hostname: "{{ item.public_ip }}"
+        hostname: "{{ item.public_ip_address }}"
         groups: ec2hosts
       loop: "{{ ec2.instances }}"
 
@@ -36,11 +70,11 @@
   gather_facts: no
   vars:
     ansible_python_interpreter: /usr/bin/python3
-  vars_files:
-    - credentials.yml
+    ansible_ssh_private_key_file: ./ansible-django.pem
   tasks:
-    - name: Waiting for system to become reachable
-      wait_for_connection:
+    - name:
+      debug:
+        msg: "Setup {{ inventory_hostname }} complete"
 
     - import_role:
         name: common
@@ -48,6 +82,8 @@
         name: db
     - import_role:
         name: web
+      vars_files:
+        - vars/github.yml
       vars:
         app_user: ubuntu
         repo_dir: /home/ubuntu/uwsgi-quickstart
