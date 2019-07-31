@@ -71,23 +71,18 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
     ansible_ssh_private_key_file: ./ansible-django.pem
+  vars_files:
+    - vars/github.yml
   tasks:
-    - name:
-      debug:
-        msg: "Setup {{ inventory_hostname }} complete"
-
     - import_role:
         name: common
     - import_role:
         name: db
     - import_role:
         name: web
-      vars_files:
-        - vars/github.yml
       vars:
         app_user: ubuntu
         repo_dir: /home/ubuntu/uwsgi-quickstart
-
     - name: Displaying completion message
       debug:
         msg: "View your app at {{ inventory_hostname }}:8080"
