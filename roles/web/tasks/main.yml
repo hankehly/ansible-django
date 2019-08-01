@@ -3,8 +3,8 @@
     name: nginx
     update_cache: yes
 
-- name: Placing template nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
-  template:
+- name: Copying nginx.conf to /etc/nginx/conf.d/uwsgiquickstart.conf
+  copy:
     src: nginx.conf
     dest: /etc/nginx/conf.d/uwsgiquickstart.conf
     mode: '0644'
