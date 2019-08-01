@@ -19,9 +19,9 @@ github_access_token=xxx # requires write:public_key permission
 
 Execute the `site.yml` playbook to provision and configure a new EC2 instance with a demo [django app](https://github.com/hankehly/uwsgi-quickstart). Ansible will create an EC2 instance, wait for it to become available, run a configuration play and output a message containing a link to the public app when configuration is complete.
 ```
-$ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --ask-vault-pass site.yml
-Vault password: ansible-django
+$ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --vault-password-file vault_password.py site.yml
 ```
 
 TODO:
-- provide way to terminate instance
+- provide way to revert changes to cloud resources
+

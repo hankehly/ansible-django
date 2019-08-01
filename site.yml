@@ -13,17 +13,35 @@
         wait: yes
       register: ec2_key
 
-    - name: Saving private key
+    - name: Copying private key to current working dir
       copy:
         content: "{{ ec2_key.key.private_key }}"
         dest: "{{ ec2_key.key.name }}.pem"
         mode: 0600
+      when: ec2_key.changed
 
-    - name: "Finding IP address"
+    - name: Getting file information for private key on local host
+      stat:
+        path: "./{{ ec2_key.key.name }}.pem"
+      delegate_to: localhost
+      register: ec2_key_st
+
+    - name: Checking private key availability and mode
+      assert:
+        that:
+          - ec2_key_st.stat.exists
+          - ec2_key_st.stat.mode == "0600"
+        success_msg: "{{ ec2_key.key.name }}.pem is present and has correct mode"
+        fail_msg: |
+          Local copy of EC2 keypair "{{ ec2_key.key.name }}.pem" is missing or mode has been modified.
+          If present, set mode to 0600 and re-run playbook.
+          If missing, delete from AWS console and re-run playbook.
+
+    - name: Finding IP address
       command: "/usr/bin/dig +short myip.opendns.com @resolver1.opendns.com"
       register: myip
 
-    - name: "Creating EC2 security group"
+    - name: Creating EC2 security group
       ec2_group:
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
@@ -48,7 +66,7 @@
         aws_secret_key: "{{ aws_secret_key }}"
         image_id: ami-026c8acd92718196b  # ubuntu 18.04
         instance_ids:
-          - i-ko3a15s43iak # random id to keep playbook idempotent
+          - i-ko3a15s43ial # random id to keep playbook idempotent
         instance_type: t2.micro
         key_name: "{{ ec2_key.key.name }}"
         name: "{{ instance_tags__name }}"
