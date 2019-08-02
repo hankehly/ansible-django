@@ -22,6 +22,8 @@ Execute the `site.yml` playbook to provision and configure a new EC2 instance wi
 $ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --vault-password-file vault_password.py site.yml
 ```
 
-TODO:
-- provide way to revert changes to cloud resources
+Run `teardown.yml` to delete the cloud resources created in `site.yml`
+```
+$ ansible-playbook --vault-password-file teardown.yml
+```
 
